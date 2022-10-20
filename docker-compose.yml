@@ -9,15 +9,19 @@ services:
       - /data/db/smartgas:/data/db
     tty: true
     stdin_open: true
-    container_name: ctn_mongo
+    container_name: ctn_srvmongo
   srvaccs:
     build:
       context: .
       dockerfile: Dockerfile
-      # args:
-      #   - APPNAME=${APPNAME}
+      args:
+        - APPNAME=srvaccounts
+    ports:
+      - 80:8080
     tty: true
     stdin_open: true
-    entrypoint: ["/usr/bin/eensy/usrv-accounts"]
+    entrypoint: ["/usr/bin/eensy/srvaccounts"]
+    container_name: ctn_srvaccs
+
     links:
       - srvmongo

@@ -10,7 +10,6 @@ containerized application can help do that
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"time"
 
@@ -79,10 +78,10 @@ func main() {
 		log.Panicf("failed to connect to database %s", err)
 	}
 	collAccs := client.Database(DBNAME).Collection("accounts")
-	indexes, _ := collAccs.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+	collAccs.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
 		{Keys: bson.D{primitive.E{Key: "email", Value: 1}}, Options: options.Index().SetUnique(true)},
 	})
-	fmt.Println(len(indexes))
+	log.Info("Database setup done...")
 	// ------------- Database connection setup
 	defer func() {
 		log.Warn("Smart bill: Now diconnecting database connection")
