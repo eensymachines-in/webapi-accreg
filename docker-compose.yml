@@ -1,0 +1,23 @@
+version: '3.1'
+
+services:
+  srvmongo:
+    image: mongo:4.2-bionic
+    ports:
+        - 37017:27017
+    volumes: 
+      - /data/db/smartgas:/data/db
+    tty: true
+    stdin_open: true
+    container_name: ctn_mongo
+  srvaccs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # args:
+      #   - APPNAME=${APPNAME}
+    tty: true
+    stdin_open: true
+    entrypoint: ["/usr/bin/eensy/accounts"]
+    links:
+      - srvmongo
