@@ -18,6 +18,6 @@ services:
       #   - APPNAME=${APPNAME}
     tty: true
     stdin_open: true
-    entrypoint: ["/usr/bin/eensy/accounts"]
+    entrypoint: ["/usr/bin/eensy/usrv-accounts"]
     links:
       - srvmongo
