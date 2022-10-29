@@ -8,6 +8,7 @@ Eensymachines accounts need to be maintained over an api endpoint
 containerized application can help do that
 ============================================== */
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -61,7 +62,36 @@ func AccountPayload(c *gin.Context) {
 	}
 }
 
+// ThrowErr :is able to digest error
+// will also log the appropriate error debug fields and message
+// will pack the context with response code
+//
+/*
+	ThrowErr(fmt.Errorf("Accounts: invalid account in payload, cannot be nil"), log.WithFields(log.Fields{
+			"payload": val,
+	}), http.StatusBadRequest, c)
+*/
+func ThrowErr(e error, le *log.Entry, code int, c *gin.Context) {
+	le.Error(e) // error gets logged
+	switch code {
+	case http.StatusBadRequest:
+		c.AbortWithStatusJSON(code, gin.H{
+			"err": "One or more inputs is nil/invalid/duplicate, check and send again",
+		})
+	case http.StatusInternalServerError:
+		c.AbortWithStatusJSON(code, gin.H{
+			"err": "One or more operations on the server has failed, please try after sometime",
+		})
+	case http.StatusNotFound:
+		c.AbortWithStatusJSON(code, gin.H{
+			"err": "One or ore resources you were looking for was not found",
+		})
+	}
+}
+
 // Accounts : when CRUD on collection of accounts
+// Handles posting of new accounts
+// handles getting index of accounts
 func Accounts(c *gin.Context) {
 	val, _ := c.Get("coll")
 	coll := val.(*mongo.Collection)
@@ -69,21 +99,34 @@ func Accounts(c *gin.Context) {
 		// posting a new account
 		val, ok := c.Get("account")
 		if !ok || val == nil {
-			c.AbortWithStatus(http.StatusBadRequest)
+			ThrowErr(fmt.Errorf("Accounts: invalid account in payload, cannot be nil"), log.WithFields(log.Fields{
+				"payload": val,
+			}), http.StatusBadRequest, c)
 			return
 		}
 		acc, _ := val.(Account)
 		// Now that we have an interface to the account
-		if Validate(acc) != nil {
-			c.AbortWithStatus(http.StatusBadRequest)
+		if err := ValidateForCreate(acc); err != nil {
+			// Invalid account details
+			ThrowErr(fmt.Errorf("Accounts: Invalid account details"), log.WithFields(log.Fields{
+				"email": acc.GetEmail(),
+				"phone": acc.GetPhone(),
+				"title": acc.GetTitle(),
+			}), http.StatusBadRequest, c)
 			return
 		}
 		if CheckDuplicate(acc, coll) != nil {
-			c.AbortWithStatus(http.StatusBadRequest)
+			// Duplicate account exists
+			// email, phone are unique
+			ThrowErr(fmt.Errorf("Accounts: Duplicate accounts detected"), log.WithFields(log.Fields{
+				"email": acc.GetEmail(),
+				"phone": acc.GetPhone(),
+			}), http.StatusBadRequest, c)
 			return
 		}
-		if CreateNewAccount(acc, coll) != nil {
-			c.AbortWithStatus(http.StatusInternalServerError)
+		if err := CreateNewAccount(acc, coll); err != nil {
+			// Error creating a new account
+			ThrowErr(fmt.Errorf("Accounts: Failed query to create accounts %s", err), log.WithFields(log.Fields{}), http.StatusInternalServerError, c)
 			return
 		}
 		// The account has been created
@@ -97,9 +140,30 @@ func Accounts(c *gin.Context) {
 /*
  */
 func AccountDetails(c *gin.Context) {
+	val, _ := c.Get("coll")
+	coll := val.(*mongo.Collection)
 	if c.Request.Method == "PUT" {
 		// except email other details can be changed
 		// email is an unique identifier for any account
-
+		val, ok := c.Get("account")
+		if !ok || val == nil {
+			ThrowErr(fmt.Errorf("Accounts: invalid account in payload, cannot be nil"), log.WithFields(log.Fields{
+				"payload": val,
+			}), http.StatusBadRequest, c)
+			return
+		}
+		acc, _ := val.(Account)
+		if ValidateForUpdate(acc) != nil {
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+		if CheckExists(acc, coll) != nil {
+			// Account sought to be updated cannot be found
+			// email, phone are unique
+			ThrowErr(fmt.Errorf("Accounts: No account found"), log.WithFields(log.Fields{
+				"email": acc.GetEmail(),
+			}), http.StatusNotFound, c)
+			return
+		}
 	}
 }

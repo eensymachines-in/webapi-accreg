@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-playground/assert/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/mongo"

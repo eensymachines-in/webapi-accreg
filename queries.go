@@ -25,12 +25,12 @@ const (
 	patternTitle = `^[a-zA-Z0-9_\-.]{1,16}$`
 )
 
-// Validate: validates the account details, checkls for errenous values
+// ValidateForCreate: validates the account details, checkls for errenous values
 // will check to see if the email, phone and the title fall in a pattern
 /*
 	// your sample code here
 */
-func Validate(acc Account) error {
+func ValidateForCreate(acc Account) error {
 	if matched, _ := regexp.MatchString(patternEmail, acc.GetEmail()); !matched {
 		return fmt.Errorf("invalid email for the account")
 	}
@@ -39,6 +39,47 @@ func Validate(acc Account) error {
 	}
 	if matched, _ := regexp.MatchString(patternTitle, acc.GetTitle()); !matched {
 		return fmt.Errorf("invalid email for the account")
+	}
+	return nil
+}
+
+// ValidateForUpdate: validates the account for its details
+// will check to see if the update`able fields are valid
+// Incase the fields arent populated, or have zero value the check is missed
+// Email is not an update`able` field
+/*
+	// your sample code here
+*/
+func ValidateForUpdate(acc Account) error {
+	if acc.GetPhone() != "" {
+		if matched, _ := regexp.MatchString(patternPhone, acc.GetPhone()); !matched {
+			return fmt.Errorf("invalid email for the account")
+		}
+	}
+	if acc.GetTitle() != "" {
+		if matched, _ := regexp.MatchString(patternTitle, acc.GetTitle()); !matched {
+			return fmt.Errorf("invalid email for the account")
+		}
+	}
+	return nil
+}
+
+// CheckExists: Checks to see if there is exactly one account with the same email
+// Will error in case the count of the documents is not equal to 1
+//
+/*
+	// your sample code here
+*/
+func CheckExists(acc Account, coll *mongo.Collection) error {
+	emailFlt := bson.M{
+		"email": acc.GetEmail(),
+	}
+	count, err := coll.CountDocuments(context.TODO(), emailFlt)
+	if err != nil {
+		return fmt.Errorf("CheckExists: failed to get account")
+	}
+	if count != int64(1) {
+		return fmt.Errorf("CheckExists: No account found")
 	}
 	return nil
 }
