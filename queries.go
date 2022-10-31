@@ -128,3 +128,26 @@ func CreateNewAccount(acc Account, coll *mongo.Collection) error {
 	log.Infof("new account inserted : %v", result.InsertedID)
 	return nil
 }
+
+// UpdateAccount: updates the title and phone of a single account
+//
+/*
+	if err := UpdateAccount(acc, coll); err != nil {
+		ThrowErr(fmt.Errorf("Accounts: Failed query to update accounts %s", err), log.WithFields(log.Fields{
+			"email": acc.GetEmail(),
+		}), http.StatusInternalServerError, c)
+		return
+	}
+*/
+func UpdateAccount(acc Account, coll *mongo.Collection) error {
+	flt := bson.M{
+		"email": acc.GetEmail(),
+	}
+	patch := bson.M{"title": acc.GetTitle(), "phone": acc.GetPhone()}
+	result, err := coll.UpdateOne(context.Background(), flt, patch)
+	if err != nil {
+		return fmt.Errorf("UpdateOne: failed query, check database connection")
+	}
+	log.Infof("account updated : %v", result.UpsertedID)
+	return nil
+}

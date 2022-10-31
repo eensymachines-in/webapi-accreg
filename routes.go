@@ -16,11 +16,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-/*==================
+/*
+==================
 - CORS enabling all cross origin requests for all verbs except OPTIONS
 - this will be applied to all api across the board during the develpment stages
 - do not apply this middleware though for routes that deliver web static content
-====================*/
+====================
+*/
 func CORS(c *gin.Context) {
 	// First, we add the headers with need to enable CORS
 	// Make sure to adjust these headers to your needs
@@ -43,22 +45,6 @@ func CORS(c *gin.Context) {
 func DBCollection(cl *mongo.Client, dbName, collName string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Set("coll", cl.Database(dbName).Collection(collName))
-	}
-}
-
-// AccountPayload : desrialixing the account payload from the request
-func AccountPayload(c *gin.Context) {
-	if c.Request.Method == "POST" || c.Request.Method == "PATCH" || c.Request.Method == "PUT" {
-		// the verb tells me if the incoming request has the payload
-		payload := &UserAccount{}
-		if err := c.BindJSON(payload); err != nil {
-			log.WithFields(log.Fields{
-				"payload": "debug your payload here",
-			}).Error("AccountPayload:failed to bind account payload")
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
-			return
-		}
-		c.Set("account", payload)
 	}
 }
 
@@ -86,6 +72,31 @@ func ThrowErr(e error, le *log.Entry, code int, c *gin.Context) {
 		c.AbortWithStatusJSON(code, gin.H{
 			"err": "One or ore resources you were looking for was not found",
 		})
+	}
+}
+
+// AccountPayload : desrialixing the account payload from the request
+//
+/*
+	// from within the downstream handlers
+	// this is howyou get the acccount as payload
+	val, ok := c.Get("account")
+	if !ok || val == nil {
+		ThrowErr(fmt.Errorf("Accounts: invalid account in payload, cannot be nil"), log.WithFields(log.Fields{
+			"payload": val,
+		}), http.StatusBadRequest, c)
+		return
+	}
+*/
+func AccountPayload(c *gin.Context) {
+	if c.Request.Method == "POST" || c.Request.Method == "PATCH" || c.Request.Method == "PUT" {
+		// the verb tells me if the incoming request has the payload
+		payload := &UserAccount{}
+		if err := c.BindJSON(payload); err != nil {
+			ThrowErr(fmt.Errorf("AccountPayload %s", err), log.WithFields(log.Fields{}), http.StatusBadRequest, c)
+			return
+		}
+		c.Set("account", payload)
 	}
 }
 
@@ -147,6 +158,7 @@ func AccountDetails(c *gin.Context) {
 		// email is an unique identifier for any account
 		val, ok := c.Get("account")
 		if !ok || val == nil {
+			// Could not read payload
 			ThrowErr(fmt.Errorf("Accounts: invalid account in payload, cannot be nil"), log.WithFields(log.Fields{
 				"payload": val,
 			}), http.StatusBadRequest, c)
@@ -154,7 +166,12 @@ func AccountDetails(c *gin.Context) {
 		}
 		acc, _ := val.(Account)
 		if ValidateForUpdate(acc) != nil {
-			c.AbortWithStatus(http.StatusBadRequest)
+			// Invalid account details, email identifies the account being modified
+			ThrowErr(fmt.Errorf("Accounts: Invalid account details to validate"), log.WithFields(log.Fields{
+				"email": acc.GetEmail(),
+				"title": acc.GetTitle(),
+				"phone": acc.GetPhone(),
+			}), http.StatusBadRequest, c)
 			return
 		}
 		if CheckExists(acc, coll) != nil {
@@ -165,5 +182,13 @@ func AccountDetails(c *gin.Context) {
 			}), http.StatusNotFound, c)
 			return
 		}
+		if err := UpdateAccount(acc, coll); err != nil {
+			ThrowErr(fmt.Errorf("Accounts: Failed query to update accounts %s", err), log.WithFields(log.Fields{
+				"email": acc.GetEmail(),
+			}), http.StatusInternalServerError, c)
+			return
+		}
+		c.AbortWithStatus(http.StatusOK)
+		return
 	}
 }
