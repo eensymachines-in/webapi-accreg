@@ -7,6 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -64,17 +65,21 @@ func ValidateForUpdate(acc Account) error {
 	return nil
 }
 
+type AccountFilter func(Account) bson.M // this can filter accounts on various criteria
+
 // CheckExists: Checks to see if there is exactly one account with the same email
 // Will error in case the count of the documents is not equal to 1
+// can customize the filter on which existence of the document is based
 //
 /*
-	// your sample code here
-*/
-func CheckExists(acc Account, coll *mongo.Collection) error {
-	emailFlt := bson.M{
-		"email": acc.GetEmail(),
+	if CheckExists(acc, coll, func(acc Account) bson.M {
+		return bson.M{"email": acc.GetEmail()}
+	}) != nil {
+		// error handling code here
 	}
-	count, err := coll.CountDocuments(context.TODO(), emailFlt)
+*/
+func CheckExists(acc Account, coll *mongo.Collection, af AccountFilter) error {
+	count, err := coll.CountDocuments(context.TODO(), af(acc))
 	if err != nil {
 		return fmt.Errorf("CheckExists: failed to get account")
 	}
@@ -149,5 +154,34 @@ func UpdateAccount(acc Account, coll *mongo.Collection) error {
 		return fmt.Errorf("UpdateOne: failed query, check database connection")
 	}
 	log.Infof("account updated : %v", result.UpsertedID)
+	return nil
+}
+
+// ArchiveAccount : removes the account details from the collection only to be archived in some other collection
+//
+/*
+	if err := ArchiveAccount(oid, coll); err != nil {
+		ThrowErr(fmt.Errorf("Accounts: Failed query to delete account %s", err), log.WithFields(log.Fields{
+			"_id": id,
+		}), http.StatusInternalServerError, c)
+		return
+	}
+*/
+func ArchiveAccount(oid primitive.ObjectID, coll *mongo.Collection) error {
+	flt := bson.M{"_id": oid}
+	sr := coll.FindOne(context.TODO(), flt)
+	archived := &UserAccount{}
+	if err := sr.Decode(archived); err != nil {
+		return err
+	}
+	// Archived replica, if this succeeds then we can remove from main collection
+	// on this collection there isnt any unique key constraint on email, phone
+	_, err := coll.Database().Collection("archvaccounts").InsertOne(context.TODO(), archived)
+	if err != nil {
+		return err
+	}
+	// when the account information is backed up its ready to be deleted
+	// we move the sameto archived collecitons
+	coll.DeleteOne(context.TODO(), flt)
 	return nil
 }

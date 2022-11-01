@@ -108,7 +108,7 @@ func main() {
 	account := accounts.Group("/:accid", AccountPayload)
 	// CRUD on single account
 	account.GET("", AccountDetails)
-	account.PATCH("", AccountDetails)
+	account.PUT("", AccountDetails)
 	account.DELETE("", AccountDetails)
 	log.Fatal(r.Run(":8080"))
 }

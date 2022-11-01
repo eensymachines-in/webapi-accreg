@@ -4,8 +4,7 @@ package main
 Copyright (c) Eensymachines
 Developed by 		: kneerunjun@gmail.com
 Developed on 		: OCT'22
-Eensymachines accounts need to be maintained over an api endpoint
-containerized application can help do that
+Has all the handlers for the routes. Typical  func(c * gin.Context) implementations
 ============================================== */
 import (
 	"fmt"
@@ -13,6 +12,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -153,9 +154,11 @@ func Accounts(c *gin.Context) {
 func AccountDetails(c *gin.Context) {
 	val, _ := c.Get("coll")
 	coll := val.(*mongo.Collection)
+	id, _ := c.Params.Get("accid")          // unique id of the account as string
+	oid, _ := primitive.ObjectIDFromHex(id) // object id of the account
+
 	if c.Request.Method == "PUT" {
 		// except email other details can be changed
-		// email is an unique identifier for any account
 		val, ok := c.Get("account")
 		if !ok || val == nil {
 			// Could not read payload
@@ -165,6 +168,7 @@ func AccountDetails(c *gin.Context) {
 			return
 		}
 		acc, _ := val.(Account)
+		// email is an unique identifier for any account
 		if ValidateForUpdate(acc) != nil {
 			// Invalid account details, email identifies the account being modified
 			ThrowErr(fmt.Errorf("Accounts: Invalid account details to validate"), log.WithFields(log.Fields{
@@ -174,7 +178,9 @@ func AccountDetails(c *gin.Context) {
 			}), http.StatusBadRequest, c)
 			return
 		}
-		if CheckExists(acc, coll) != nil {
+		if CheckExists(acc, coll, func(acc Account) bson.M {
+			return bson.M{"email": acc.GetEmail()}
+		}) != nil {
 			// Account sought to be updated cannot be found
 			// email, phone are unique
 			ThrowErr(fmt.Errorf("Accounts: No account found"), log.WithFields(log.Fields{
@@ -185,6 +191,25 @@ func AccountDetails(c *gin.Context) {
 		if err := UpdateAccount(acc, coll); err != nil {
 			ThrowErr(fmt.Errorf("Accounts: Failed query to update accounts %s", err), log.WithFields(log.Fields{
 				"email": acc.GetEmail(),
+			}), http.StatusInternalServerError, c)
+			return
+		}
+		c.AbortWithStatus(http.StatusOK)
+		return
+	} else if c.Request.Method == "DELETE" {
+		if CheckExists(&UserAccount{ID: oid}, coll, func(acc Account) bson.M {
+			return bson.M{"_id": oid}
+		}) != nil {
+			ThrowErr(fmt.Errorf("Accounts: No account found"), log.WithFields(log.Fields{
+				"id": id,
+			}), http.StatusNotFound, c)
+			return
+		}
+		// Data cannot be ever deleted permanently
+		// Keeping up with the rules of the modern internet we need to still stove away the account details
+		if err := ArchiveAccount(oid, coll); err != nil {
+			ThrowErr(fmt.Errorf("Accounts: Failed query to delete account %s", err), log.WithFields(log.Fields{
+				"_id": id,
 			}), http.StatusInternalServerError, c)
 			return
 		}

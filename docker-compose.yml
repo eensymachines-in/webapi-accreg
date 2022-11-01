@@ -22,6 +22,5 @@ services:
     stdin_open: true
     entrypoint: ["/usr/bin/eensy/srvaccounts"]
     container_name: ctn_srvaccs
-
     links:
       - srvmongo
