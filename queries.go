@@ -23,7 +23,7 @@ const (
 	patternEmail = `^[[:alnum:]]+[.\-_]{0,1}[[:alnum:]]*[@]{1}[[:alpha:]]+[.]{1}[[:alnum:]]{2,}[.]{0,1}[[:alnum:]]{0,}$`
 	patternPhone = `^[0-9]{10}$` // we are assuming that we have phone numbers from India only
 	// title of the account allowed is about 1 to 16 characters including numbers and a handful of special characters
-	patternTitle = `^[a-zA-Z0-9_\-.]{1,16}$`
+	patternTitle = `^[a-zA-Z0-9_\-.\s]{1,16}$`
 )
 
 // ValidateForCreate: validates the account details, checkls for errenous values
@@ -100,7 +100,7 @@ func CheckDuplicate(acc Account, coll *mongo.Collection) error {
 	emailFlt := bson.M{
 		"email": acc.GetEmail(),
 	}
-	count, err := coll.CountDocuments(context.TODO(), emailFlt)
+	count, err := coll.CountDocuments(context.Background(), emailFlt)
 	if err != nil {
 		return fmt.Errorf("failed to get account duplicates")
 	}

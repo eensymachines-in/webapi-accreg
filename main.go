@@ -29,7 +29,9 @@ var (
 const (
 	// getting connected to a container that runs mongo
 	CONNSTR = "mongodb://srvmongo:27017"
-	DBNAME  = "eensydb"
+	// for testing purposes we need to have connection via the local host
+	// CONNSTR = "mongodb://localhost:27017"
+	DBNAME = "eensydb"
 )
 
 func init() {

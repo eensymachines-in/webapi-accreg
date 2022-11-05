@@ -1,14 +1,13 @@
 package main
 
+import "go.mongodb.org/mongo-driver/bson/primitive"
+
 /* ==============================================
 Copyright (c) Eensymachines
 Developed by 		: kneerunjun@gmail.com
 Developed on 		: OCT'22
 Datashape of the models when with accounting
 ============================================== */
-import (
-	"go.mongodb.org/mongo-driver/bson/primitive"
-)
 
 type Account interface {
 	GetEmail() string
@@ -19,10 +18,13 @@ type Account interface {
 // UserAccount : account data that signifies the user information
 // this has a direct representation in the database
 type UserAccount struct {
-	ID    primitive.ObjectID
-	Email string `bson:"email, unique" json:"email"`
-	Phone string `bson:"phone, unique" json:"phone"`
-	Title string `bson:"title" json:"title"`
+	// ID : maps directly to the _id on the database
+	// when inserting new its empty or with zero value, hence omitempty
+	// when inserting new the driver generates a new id
+	ID    primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Email string             `bson:"email, unique" json:"email"`
+	Phone string             `bson:"phone, unique" json:"phone"`
+	Title string             `bson:"title" json:"title"`
 }
 
 func (ua *UserAccount) GetEmail() string {
