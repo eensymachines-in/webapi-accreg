@@ -220,5 +220,22 @@ func AccountDetails(c *gin.Context) {
 		}
 		c.AbortWithStatus(http.StatusOK)
 		return
+	} else if c.Request.Method == "GET" {
+		if CheckExists(&UserAccount{ID: oid}, coll, func(acc Account) bson.M {
+			return bson.M{"_id": oid}
+		}) != nil {
+			ThrowErr(fmt.Errorf("Accounts: No account found"), log.WithFields(log.Fields{
+				"id": id,
+			}), http.StatusNotFound, c)
+			return
+		} //checking to see if the account exists, if not then send back an error
+		hResult := gin.H{}
+		if err := AccountOfID(oid, coll, &hResult); err != nil {
+			// Error creating a new account
+			ThrowErr(fmt.Errorf("Accounts: Failed query get account %s", err), log.WithFields(log.Fields{}), http.StatusInternalServerError, c)
+			return
+		}
+		c.AbortWithStatusJSON(http.StatusOK, hResult)
+		return
 	}
 }

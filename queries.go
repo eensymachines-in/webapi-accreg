@@ -204,3 +204,23 @@ func ArchiveAccount(oid primitive.ObjectID, coll *mongo.Collection) error {
 	coll.DeleteOne(context.TODO(), flt)
 	return nil
 }
+
+// AccountOfID: given the id of the account, gets the account details
+func AccountOfID(oid primitive.ObjectID, coll *mongo.Collection, hResult *gin.H) error {
+	flt := bson.M{"_id": oid}
+	sr := coll.FindOne(context.TODO(), flt)
+	if sr.Err() != nil {
+		return sr.Err()
+	}
+	result := &UserAccount{}
+	if err := sr.Decode(&result); err != nil {
+		return err
+	}
+	*hResult = gin.H{
+		"id":    result.ID.Hex(),
+		"email": result.Email,
+		"title": result.Title,
+		"phone": result.Phone,
+	}
+	return nil
+}
