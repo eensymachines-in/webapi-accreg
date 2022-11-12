@@ -184,7 +184,7 @@ func AccountDetails(c *gin.Context) {
 			return
 		}
 		if CheckExists(acc, coll, func(acc Account) bson.M {
-			return bson.M{"email": acc.GetEmail()}
+			return bson.M{"_id": oid}
 		}) != nil {
 			// Account sought to be updated cannot be found
 			// email, phone are unique
@@ -193,9 +193,11 @@ func AccountDetails(c *gin.Context) {
 			}), http.StatusNotFound, c)
 			return
 		}
-		if err := UpdateAccount(acc, coll); err != nil {
+		if err := UpdateAccount(acc, func(acc Account) bson.M {
+			return bson.M{"_id": oid}
+		}, coll); err != nil {
 			ThrowErr(fmt.Errorf("Accounts: Failed query to update accounts %s", err), log.WithFields(log.Fields{
-				"email": acc.GetEmail(),
+				"_id": oid.Hex(),
 			}), http.StatusInternalServerError, c)
 			return
 		}

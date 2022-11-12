@@ -22,6 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -241,6 +242,7 @@ func TestApiPostAcc(t *testing.T) {
 	GET API HTTP test
 	=============*/
 	// Then trying to get the account details from api
+	// remember result["id"] is a string fromt the json payload
 	testUrl = fmt.Sprintf("%s/api/accounts/%s", testBaseUrl, result["id"])
 	t.Logf("now testing GET with url %s", testUrl)
 	resp, err = http.Get(testUrl)
@@ -257,4 +259,37 @@ func TestApiPostAcc(t *testing.T) {
 	json.Unmarshal(byt, &accResult)
 	assert.NotNil(t, result, "Unexpected nil response payload")
 	t.Log(accResult)
+	/* ==========
+	GET test with invalid id
+	=============*/
+	invalidID := primitive.NewObjectID()
+	testUrl = fmt.Sprintf("%s/api/accounts/%s", testBaseUrl, invalidID.Hex())
+	t.Logf("now testing GET with account id that does not exists %s", testUrl)
+	resp, err = http.Get(testUrl)
+	if err != nil {
+		t.Errorf("Error GET request, invalid id, %s", err)
+	}
+	assert.Equal(t, 404, resp.StatusCode, fmt.Sprintf("Unexpected status code for request %s", testUrl))
+	/* ==========
+	PUT test with valid payload
+	=============*/
+	testUrl = fmt.Sprintf("%s/api/accounts/%s", testBaseUrl, result["id"])
+	t.Logf("now testing PUT with url %s", testUrl)
+	bytJson, _ = json.Marshal(&UserAccount{
+		Title: "testPutTitle",
+		Phone: "8390906860",
+	})
+	reader := bytes.NewReader(bytJson)
+	req, err := http.NewRequest("PUT", testUrl, reader)
+	if err != nil {
+		t.Error(err)
+	}
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+	resp, err = client.Do(req)
+	if err != nil {
+		t.Errorf("Error GET request, invalid id, %s", err)
+	}
+	assert.Equal(t, 200, resp.StatusCode, fmt.Sprintf("Unexpected status code for request %s", testUrl))
 }

@@ -155,6 +155,7 @@ func CreateNewAccount(acc Account, coll *mongo.Collection, hresult *gin.H) error
 
 // UpdateAccount: updates the title and phone of a single account
 //
+// TODO: when the account has more fields attached to it the update patch can expand
 /*
 	if err := UpdateAccount(acc, coll); err != nil {
 		ThrowErr(fmt.Errorf("Accounts: Failed query to update accounts %s", err), log.WithFields(log.Fields{
@@ -163,14 +164,14 @@ func CreateNewAccount(acc Account, coll *mongo.Collection, hresult *gin.H) error
 		return
 	}
 */
-func UpdateAccount(acc Account, coll *mongo.Collection) error {
-	flt := bson.M{
-		"email": acc.GetEmail(),
-	}
-	patch := bson.M{"title": acc.GetTitle(), "phone": acc.GetPhone()}
-	result, err := coll.UpdateOne(context.Background(), flt, patch)
+func UpdateAccount(acc Account, flt AccountFilter, coll *mongo.Collection) error {
+	// flt := bson.M{
+	// 	"email": acc.GetEmail(),
+	// }
+	patch := bson.M{"$set": bson.M{"title": acc.GetTitle(), "phone": acc.GetPhone()}}
+	result, err := coll.UpdateOne(context.Background(), flt(acc), patch)
 	if err != nil {
-		return fmt.Errorf("UpdateOne: failed query, check database connection")
+		return fmt.Errorf("UpdateOne: failed query, check database connection, %s", err)
 	}
 	log.Infof("account updated : %v", result.UpsertedID)
 	return nil
