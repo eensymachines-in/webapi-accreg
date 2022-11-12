@@ -101,10 +101,17 @@ func main() {
 			"logtofile": FLogF,
 		})
 	})
-	r.Use(CORS)
-	accounts := r.Group("/accounts")
+	/* ++++++++++++
+	/api/accounts  : group of accounts
+	+++++++===*/
+	api := r.Group("/api") // all the json endpoints grouped
+	api.Use(CORS)
+	accounts := api.Group("/accounts")
 	accounts.Use(DBCollection(client, "eensydb", "accounts"))
 	accounts.POST("", AccountPayload, Accounts) // creates new account
+	/* ++++++++++++
+	/api/accounts/:accid  : single account details
+	+++++++===*/
 	// incase of get and delete the AccountPayload middleware will be in action
 	// incase of put, patch the account details need to be read back
 	account := accounts.Group("/:accid", AccountPayload)

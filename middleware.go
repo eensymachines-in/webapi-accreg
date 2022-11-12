@@ -136,13 +136,18 @@ func Accounts(c *gin.Context) {
 			}), http.StatusBadRequest, c)
 			return
 		}
-		if err := CreateNewAccount(acc, coll); err != nil {
+		hResult := gin.H{}
+		// Despite CreateNewAccount being a query function it will populate the gin.H result to the relevant content
+		// Question is do we then go ahead with map[string]interface{} or stay with gin.H
+		// Query functions are not entirely independent from the middleware
+		// Even incase we want to use the query functions in other project they still use middleware
+		if err := CreateNewAccount(acc, coll, &hResult); err != nil {
 			// Error creating a new account
 			ThrowErr(fmt.Errorf("Accounts: Failed query to create accounts %s", err), log.WithFields(log.Fields{}), http.StatusInternalServerError, c)
 			return
 		}
 		// The account has been created
-		c.AbortWithStatus(http.StatusCreated)
+		c.AbortWithStatusJSON(http.StatusCreated, hResult)
 		return
 	}
 }

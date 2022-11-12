@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -122,15 +123,33 @@ func CheckDuplicate(acc Account, coll *mongo.Collection) error {
 
 // CreateNewAccount: registers new account to the database
 //
+// Upon creation of the account, the UID of the account then is sent back.
+// Such UIDs can be used in urls to further indentify the account from the API
+//
+// acc : Account to be inserted
+//
+// coll: database collection in which the account gets inserted
+//
+// hresult: result of the operation that can be then jsonified in the response
+//
 /*
-	// your sample code here
+	hResult := gin.H{}
+	if err := CreateNewAccount(acc, coll, &hResult); err != nil {
+		ThrowErr(fmt.Errorf("Accounts: Failed query to create accounts %s", err), log.WithFields(log.Fields{}), http.StatusInternalServerError, c)
+		return
+	}
+	// The account has been created
+	c.AbortWithStatusJSON(http.StatusCreated, hResult)
 */
-func CreateNewAccount(acc Account, coll *mongo.Collection) error {
+func CreateNewAccount(acc Account, coll *mongo.Collection, hresult *gin.H) error {
 	result, err := coll.InsertOne(context.Background(), acc)
 	if err != nil {
 		return fmt.Errorf("InsertOne: failed query, check database connection")
 	}
 	log.Infof("new account inserted : %v", result.InsertedID)
+	*hresult = gin.H{
+		"id": result.InsertedID.(primitive.ObjectID).Hex(),
+	}
 	return nil
 }
 

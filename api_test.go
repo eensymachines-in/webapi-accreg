@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"testing"
@@ -23,6 +24,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+const (
+	testBaseUrl      = "http://localhost"
+	REQ_CONTENT_TYPE = "application/json"
 )
 
 /*-----------------------------
@@ -168,4 +174,87 @@ func TestAccPostMddlware(t *testing.T) {
 	Accounts(ctx)
 	assert.Equal(t, ctx.Request.Response.StatusCode, http.StatusCreated, "http status code not as expected")
 	// ======= Cleaning up the test
+}
+
+// TestApiPostAcc : this is to get the account tested from the api end point
+func TestApiPostAcc(t *testing.T) {
+	/* ==========
+	Setting up the test
+	=============*/
+	coll := getTestMongoColl("accounts", "eensydb") // database connection from host port
+	assert.NotNil(t, coll, "Unexpected null collection, cannot proceed with test")
+	ua, err := JsonSampleRandomAccount() // sample account to be inserted from json seed
+	if err != nil {
+		t.Error("TestInsertOne: failed to get random sample account")
+	}
+	t.Logf("Database connection: ok, sample account to post %s", ua.Email)
+	/* ==========
+	defered Cleaning up the test
+	=============*/
+	defer func() {
+		t.Log("Now cleaning up the test.. ")
+		coll.DeleteOne(context.TODO(), bson.M{
+			"email": ua.Email,
+		})
+		coll.Database().Client().Disconnect(context.TODO())
+	}()
+	/* ==========
+	POST API HTTP test
+	=============*/
+	testUrl := fmt.Sprintf("%s/api/accounts", testBaseUrl)
+	bytJson, err := json.Marshal(ua)
+	if err != nil {
+		t.Errorf("failed to marshall account to json")
+	}
+	payload := bytes.NewReader(bytJson)
+	t.Logf("now testing POST with url %s", testUrl)
+	resp, err := http.Post(testUrl, REQ_CONTENT_TYPE, payload)
+	if err != nil {
+		t.Errorf("error making the POST request, %s", err)
+	}
+	defer resp.Body.Close()
+	assert.Equal(t, 201, resp.StatusCode, fmt.Sprintf("Unexpected status code for request %s", testUrl))
+	/* ==========
+	Checking for new account being added to the database
+	=============*/
+	// TODO: the api shoudl get back the details of the account being inserted
+	//
+	count, err := coll.CountDocuments(context.TODO(), bson.M{
+		"email": ua.Email,
+	})
+	if err != nil {
+		t.Errorf("failed database query to read account being added %s", err)
+	}
+	assert.Equal(t, int64(1), count, "Unexp3cted count of documents when inserted")
+	/* ==========
+	Reading the response payload
+	=============*/
+	byt, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("error reading the response body, %s", err)
+	}
+	result := map[string]interface{}{}
+	json.Unmarshal(byt, &result)
+	assert.NotNil(t, result, "Unexpected nil response payload")
+	t.Log(result)
+	/* ==========
+	GET API HTTP test
+	=============*/
+	// Then trying to get the account details from api
+	testUrl = fmt.Sprintf("%s/api/accounts/%s", testBaseUrl, result["id"])
+	t.Logf("now testing GET with url %s", testUrl)
+	resp, err = http.Get(testUrl)
+	if err != nil {
+		t.Errorf("error making the GET request, %s", err)
+	}
+	defer resp.Body.Close()
+	assert.Equal(t, 200, resp.StatusCode, fmt.Sprintf("Unexpected status code for request %s", testUrl))
+	byt, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("error reading the response body, %s", err)
+	}
+	accResult := UserAccount{}
+	json.Unmarshal(byt, &accResult)
+	assert.NotNil(t, result, "Unexpected nil response payload")
+	t.Log(accResult)
 }
