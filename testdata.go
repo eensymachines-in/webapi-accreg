@@ -14,7 +14,19 @@ import (
 )
 
 // JsonSampleUserAccounts : shall read the entire file and then send back the block result
-func JsonSampleUserAccounts() ([]*UserAccount, error) {
+// limit 		: if you want only a sample of the entire seed and not the entire dump
+//
+/*
+	seed, err := JsonSampleUserAccounts(-1)
+	if err !=nil{
+		return err
+	}
+	fmt.Printf("length of the sntire seed data is %d", len(seed))
+	seed, err = JsonSampleUserAccounts(10)
+	fmt.Println("We are expecting to have only 10 items in the sample seed")
+
+*/
+func JsonSampleUserAccounts(limit int) ([]*UserAccount, error) {
 	byt, err := ioutil.ReadFile("useraccs.json")
 	if err != nil {
 		return nil, err
@@ -23,7 +35,11 @@ func JsonSampleUserAccounts() ([]*UserAccount, error) {
 	if err := json.Unmarshal(byt, &result); err != nil {
 		return nil, err
 	}
-	return result, nil
+	if limit > 0 {
+		return result[:limit], nil
+	}
+	return result, nil // case where the entire dump is requested
+
 }
 
 // JsonSampleRandomAccount : from the entire sample of user accounts this will get the random account
